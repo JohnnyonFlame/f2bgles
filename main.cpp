@@ -9,8 +9,8 @@
 
 const char *g_caption = "Fade2Black/OpenGL";
 
-static const int kDefaultW = 640;
-static const int kDefaultH = kDefaultW * 3 / 4;
+static const int kDefaultW = 320;
+static const int kDefaultH = 240;
 
 static int gWindowW = kDefaultW;
 static int gWindowH = kDefaultH;
@@ -119,6 +119,11 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+#ifdef USE_GLES
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#endif
+
 	SDL_ShowCursor(SDL_DISABLE);
 	SDL_Window *window = SDL_CreateWindow(g_caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, gWindowW, gWindowH, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 	if (!window) {
