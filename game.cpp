@@ -3170,16 +3170,16 @@ bool Game::redrawSceneGridCell(int x, int z, CellMap *cell) {
 			drawWall(quad, 4, cell->texture[1]);
 			break;
 		case 10:
-                        initVerticesE(quad, x, z,  kWallThick/2, 0);
-                        drawWall(quad, 4, cell->texture[1]);
-                        initVerticesE(quad, x, z, -kWallThick/2, 0);
-                        drawWall(quad, 4, cell->texture[0]);
+			initVerticesE(quad, x, z,  kWallThick/2, 0);
+			drawWall(quad, 4, cell->texture[1]);
+			initVerticesE(quad, x, z, -kWallThick/2, 0);
+			drawWall(quad, 4, cell->texture[0]);
 			break;
 		case 11:
-                        initVerticesN(quad, x, z, 0, -(16 - kWallThick) / 2);
-                        drawWall(quad, 4, cell->texture[0]);
-                        initVerticesS(quad, x, z, 0,  (16 - kWallThick) / 2);
-                        drawWall(quad, 4, cell->texture[1]);
+			initVerticesN(quad, x, z, 0, -(16 - kWallThick) / 2);
+			drawWall(quad, 4, cell->texture[0]);
+			initVerticesS(quad, x, z, 0,  (16 - kWallThick) / 2);
+			drawWall(quad, 4, cell->texture[1]);
 			break;
 		case 20:
 			break;
@@ -3196,6 +3196,7 @@ bool Game::redrawSceneGridCell(int x, int z, CellMap *cell) {
 void Game::redrawSceneGroundWalls() {
 //	rayCast(_xPosObserver << 1, _zPosObserver << 1);
 	_render->setupProjection();
+	_render->setupTexJobList();
 	for (int x = 0; x < kMapSizeX; ++x) {
 		for (int z = 0; z < kMapSizeZ; ++z) {
 			CellMap *cell = &_sceneCellMap[x][z];
@@ -3215,12 +3216,13 @@ void Game::redrawSceneGroundWalls() {
 			case 0:
 			case -2:
 			case -3:
-case 32: // fixes objects on hole (level 4)
+			case 32: // fixes objects on hole (level 4)
 				addObjectToDrawList(cell);
 				break;
 			}
 		}
 	}
+	_render->flushTexJobList();
 }
 
 bool Game::findRoom(const CollisionSlot *colSlot, int room1, int room2) {

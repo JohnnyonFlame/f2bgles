@@ -43,6 +43,8 @@ struct Render {
 		int ph;
 	} _viewport;
 
+	uint8_t isBatching;
+	
 	Render();
 	~Render();
 
@@ -53,6 +55,8 @@ struct Render {
 
 	void drawPolygonFlat(const Vertex *vertices, int verticesCount, int color);
 	void drawPolygonTexture(const Vertex *vertices, int verticesCount, int primitive, const uint8_t *texData, int texW, int texH, int16_t texKey);
+	void _drawPolygonFlat(const Vertex *vertices, int verticesCount, int color);
+	void _drawPolygonTexture(const Vertex *vertices, int verticesCount, int primitive, const uint8_t *texData, int texW, int texH, int16_t texKey);
 	void drawParticle(const Vertex *pos, int color);
 	void drawSprite(int x, int y, const uint8_t *texData, int texW, int texH, int16_t texKey);
 	void drawRectangle(int x, int y, int w, int h, int color);
@@ -74,7 +78,11 @@ struct Render {
 	void setupProjection2d();
 	void drawOverlay();
 	void resizeScreen(int w, int h);
-
+	
+	void setupJobList();
+	void flushJobList();
+	void setupTexJobList();
+	void flushTexJobList();
 	const uint8_t *captureScreen(int *w, int *h);
 };
 

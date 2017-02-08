@@ -50,10 +50,37 @@ struct Matrix4f {
 	}
 };
 
+#define MAX_ATLASES 4
+#define MAX_JOBS 4096
+
+struct TexturedJobVertex {
+	GLfloat x, y, z;
+	GLfloat u, v;
+	
+	void setJob(GLfloat x, GLfloat y, GLfloat z, GLfloat u, GLfloat v) {
+		this->x = x; this->y = y; this->z = z; 
+		this->u = u; this->v = v; 
+	};
+} TexturedJobList[MAX_ATLASES][MAX_JOBS][3] = {};
+uint32_t TexturedJobCount[MAX_ATLASES] = {};
+
+struct JobVertex {
+	GLfloat x, y, z;
+	GLfloat r, g, b, a;
+	
+	void setJob(GLfloat x, GLfloat y, GLfloat z, GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
+		this->x = x; this->y = y; this->z = z; 
+		this->r = r; this->g = g; this->b = b; this->a = a;
+	};
+} JobList[MAX_JOBS][3] = {};
+uint32_t JobCount = 0;
+
 #ifdef USE_GLES
 
 #define glOrtho glOrthof
 #define glFrustum glFrustumf
+
+#endif
 
 static const int kVerticesBufferSize = 1024;
 static GLfloat _verticesBuffer[kVerticesBufferSize * 3];
@@ -69,101 +96,40 @@ static GLfloat *bufferVertex(const Vertex *vertices, int count) {
 	}
 	return _verticesBuffer;
 }
-#endif
 
 static void emitQuad2i(int x, int y, int w, int h) {
-#ifdef USE_GLES
 	GLfloat vertices[] = { x, y, x + w, y, x + w, y + h, x, y + h };
 	glVertexPointer(2, GL_FLOAT, 0, vertices);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#else
-	glBegin(GL_QUADS);
-		glVertex2i(x, y);
-		glVertex2i(x + w, y);
-		glVertex2i(x + w, y + h);
-		glVertex2i(x, y + h);
-	glEnd();
-#endif
 }
 
-static void emitQuadTex2i(int x, int y, int w, int h, GLfloat *uv) {
-#ifdef USE_GLES
+static void emitQuadTex2i(int x, int y, int w, int h, GLfloat *uv) {	
 	GLfloat vertices[] = { x, y, x + w, y, x + w, y + h, x, y + h };
 	glVertexPointer(2, GL_FLOAT, 0, vertices);
 	glTexCoordPointer(2, GL_FLOAT, 0, uv);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#else
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv[0], uv[1]);
-		glVertex2i(x, y);
-		glTexCoord2f(uv[2], uv[3]);
-		glVertex2i(x + w, y);
-		glTexCoord2f(uv[4], uv[5]);
-		glVertex2i(x + w, y + h);
-		glTexCoord2f(uv[6], uv[7]);
-		glVertex2i(x, y + h);
-	glEnd();
-#endif
 }
 
 static void emitQuadTex3i(const Vertex *vertices, GLfloat *uv) {
-#ifdef USE_GLES
 	glVertexPointer(3, GL_FLOAT, 0, bufferVertex(vertices, 4));
 	glTexCoordPointer(2, GL_FLOAT, 0, uv);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#else
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv[0], uv[1]);
-		glVertex3i(vertices[0].x, vertices[0].y, vertices[0].z);
-		glTexCoord2f(uv[2], uv[3]);
-		glVertex3i(vertices[1].x, vertices[1].y, vertices[1].z);
-		glTexCoord2f(uv[4], uv[5]);
-		glVertex3i(vertices[2].x, vertices[2].y, vertices[2].z);
-		glTexCoord2f(uv[6], uv[7]);
-		glVertex3i(vertices[3].x, vertices[3].y, vertices[3].z);
-	glEnd();
-#endif
 }
 
 static void emitTriTex3i(const Vertex *vertices, const GLfloat *uv) {
-#ifdef USE_GLES
 	glVertexPointer(3, GL_FLOAT, 0, bufferVertex(vertices, 3));
 	glTexCoordPointer(2, GL_FLOAT, 0, uv);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
-#else
-	glBegin(GL_TRIANGLES);
-		glTexCoord2f(uv[0], uv[1]);
-		glVertex3i(vertices[0].x, vertices[0].y, vertices[0].z);
-		glTexCoord2f(uv[2], uv[3]);
-		glVertex3i(vertices[1].x, vertices[1].y, vertices[1].z);
-		glTexCoord2f(uv[4], uv[5]);
-		glVertex3i(vertices[2].x, vertices[2].y, vertices[2].z);
-	glEnd();
-#endif
 }
 
 static void emitTriFan3i(const Vertex *vertices, int count) {
-#ifdef USE_GLES
 	glVertexPointer(3, GL_FLOAT, 0, bufferVertex(vertices, count));
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#else
-	glBegin(GL_TRIANGLE_FAN);
-		for (int i = 0; i < count; ++i) {
-			glVertex3i(vertices[i].x, vertices[i].y, vertices[i].z);
-		}
-        glEnd();
-#endif
 }
 
 static void emitPoint3f(const Vertex *pos) {
-#ifdef USE_GLES
 	glVertexPointer(3, GL_FLOAT, 0, bufferVertex(pos, 1));
 	glDrawArrays(GL_POINTS, 0, 1);
-#else
-	glBegin(GL_POINTS);
-		glVertex3f(pos->x, pos->y, pos->z);
-	glEnd();
-#endif
 }
 
 static TextureCache _textureCache;
@@ -173,6 +139,7 @@ static Vertex4f _frustum[6];
 
 Render::Render() {
 	memset(_clut, 0, sizeof(_clut));
+	isBatching = 0;
 	_screenshotBuf = 0;
 	_overlay.buf = (uint8_t *)calloc(kOverlayBufSize, sizeof(uint8_t));
 	_overlay.tex = 0;
@@ -219,7 +186,180 @@ void Render::setCameraPitch(int ry) {
 	_cameraPitch = ry * 360 / 1024.;
 }
 
+static void emitTexturedTriangles(GLuint tex, const Vertex *vertices, int verticesCount, GLfloat *uv)
+{
+	int job = TexturedJobCount[tex];
+	
+	for (int i = 2; i < verticesCount; i++)
+	{
+		TexturedJobList[tex][job][0].setJob(vertices[0  ].x, vertices[0  ].y, vertices[0  ].z, uv[0],       uv[1]);
+		TexturedJobList[tex][job][1].setJob(vertices[i-1].x, vertices[i-1].y, vertices[i-1].z, uv[2*(i-1)], uv[2*(i-1)+1]);
+		TexturedJobList[tex][job][2].setJob(vertices[i  ].x, vertices[i  ].y, vertices[i  ].z, uv[2*i],     uv[2*i+1]);
+		
+		job++;
+	}
+	
+	TexturedJobCount[tex] += verticesCount - 2;
+}
+
+void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int primitive, const uint8_t *texData, int texW, int texH, int16_t texKey) {
+	if (!isBatching) {
+		_drawPolygonTexture(vertices, verticesCount, primitive, texData, texW, texH, texKey);
+		return;
+	}
+	
+	assert(texData && texW > 0 && texH > 0);
+	assert(vertices && verticesCount >= 4);
+	
+	Texture *t = _textureCache.getCachedTexture(texData, texW, texH, texKey);
+	assert(t->id <= MAX_ATLASES);
+	if(TexturedJobCount[t->id] + (verticesCount - 2) > MAX_JOBS) {
+		warning("Cannot allocate new job");
+		return;
+	}
+	
+	switch (primitive) {
+	case 0:	case 2:
+		{
+			GLfloat uv[] = { 
+				t->x, t->y, 
+				t->u, t->y, 
+				t->u, t->v, 
+				t->x, t->v 
+			};
+
+			emitTexturedTriangles(t->id - 1, vertices, verticesCount, uv);
+		}
+		break;
+	case 1:
+		{
+			GLfloat uv[] = { 
+				(t->u + t->x) / 2, t->y, 
+				t->u,              t->v, 
+				t->x,              t->v 
+			};
+			
+			emitTexturedTriangles(t->id - 1, vertices, verticesCount, uv);
+		}
+		break;
+	case 3:	case 5:
+		{
+			GLfloat uv[] = { 
+				t->u, t->y, 
+				t->u, t->v, 
+				t->x, t->v, 
+				t->x, t->y 
+			};
+			
+			emitTexturedTriangles(t->id - 1, vertices, verticesCount, uv);
+		}
+		break;
+	case 4:
+		{
+			GLfloat uv[] = { 
+				t->u,              t->v, 
+				t->x,              t->v, 
+				(t->u + t->x) / 2, t->y 
+			};
+			
+			emitTexturedTriangles(t->id - 1, vertices, verticesCount, uv);
+		}
+		break;
+	case 6:	case 8:
+		{
+			GLfloat uv[] = { 
+				t->u, t->v, 
+				t->x, t->v, 
+				t->x, t->y, 
+				t->u, t->y 
+			};
+			
+			emitTexturedTriangles(t->id - 1, vertices, verticesCount, uv);
+		}
+		break;
+	case 7:
+		{
+			GLfloat uv[] = { 
+				t->x,              t->v, 
+				(t->x + t->u) / 2, t->y, 
+				t->u,              t->v 
+			};
+			
+			emitTexturedTriangles(t->id - 1, vertices, verticesCount, uv);
+		}
+		break;
+	case 9:	case 10:
+		{
+			GLfloat uv[] = { 
+				t->x, t->y, 
+				t->x, t->v, 
+				t->u, t->v, 
+				t->u, t->y 
+			};
+			
+			emitTexturedTriangles(t->id - 1, vertices, verticesCount, uv);
+		}
+		break;
+	default:
+		//warning("Render::drawPolygonTexture() unhandled primitive %d", primitive);
+		break;
+	}
+}
+
 void Render::drawPolygonFlat(const Vertex *vertices, int verticesCount, int color) {
+	if (!isBatching) {
+		_drawPolygonFlat(vertices, verticesCount, color);
+		return;
+	}
+	
+	GLfloat r = 0., g = 0., b = 0., a = 1.;
+	
+	switch(color) {
+	case kFlatColorRed:
+		r = 1.; g = 0.; b = 0.; a = .5;
+		break;
+	case kFlatColorGreen:
+		r = 0.; g = 1.; b = 0.; a = .5;
+		break;
+	case kFlatColorYellow:
+		r = 1.; g = 1.; b = 0.; a = .5;
+		break;
+	case kFlatColorBlue:
+		r = 0.; g = 0.; b = 1.; a = .5;
+		break;
+	case kFlatColorShadow:
+		r = 0.; g = 0.; b = 0.; a = .5;
+		break;
+	case kFlatColorLight:
+		r = 1.; g = 1.; b = 1.; a = .2;
+		break;
+	default:
+		if (color >= 0 && color < 256) {
+			r = _pixelColorMap[0][color];
+			g = _pixelColorMap[1][color];
+			b = _pixelColorMap[2][color];
+			a = _pixelColorMap[3][color];
+		} else {
+			warning("Render::drawPolygonFlat() unhandled color %d", color);
+		}
+		break;
+	}
+	
+	for (int i = 2; i < verticesCount; i++) {
+		if (JobCount+1 > MAX_JOBS) {
+			warning("Too many scheduled jobs! Dropping jobs");
+			return;
+		}
+		
+		JobList[JobCount][0].setJob(vertices[0  ].x, vertices[0  ].y, vertices[0  ].z, r, g, b, a);
+		JobList[JobCount][1].setJob(vertices[i-1].x, vertices[i-1].y, vertices[i-1].z, r, g, b, a);
+		JobList[JobCount][2].setJob(vertices[i  ].x, vertices[i  ].y, vertices[i  ].z, r, g, b, a);
+		
+		JobCount++;
+	}
+}
+
+void Render::_drawPolygonFlat(const Vertex *vertices, int verticesCount, int color) {
 	switch (color) {
 	case kFlatColorRed:
 		glColor4f(1., 0., 0., .5);
@@ -251,7 +391,7 @@ void Render::drawPolygonFlat(const Vertex *vertices, int verticesCount, int colo
 	glColor4f(1., 1., 1., 1.);
 }
 
-void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int primitive, const uint8_t *texData, int texW, int texH, int16_t texKey) {
+void Render::_drawPolygonTexture(const Vertex *vertices, int verticesCount, int primitive, const uint8_t *texData, int texW, int texH, int16_t texKey) {
 	assert(texData && texW > 0 && texH > 0);
 	assert(vertices && verticesCount >= 4);
 	glEnable(GL_TEXTURE_2D);
@@ -409,9 +549,13 @@ void Render::beginObjectDraw(int x, int y, int z, int ry, int shift) {
 	glTranslatef(x / div, y / div, z / div);
 	glRotatef(ry * 360 / 1024., 0., 1., 0.);
 	glScalef(1 / 8., 1 / 2., 1 / 8.);
+	
+	setupJobList();
 }
 
 void Render::endObjectDraw() {
+	flushJobList();
+	
 	glPopMatrix();
 }
 
@@ -521,10 +665,9 @@ static void setPerspective(GLfloat fovy, GLfloat aspect, GLfloat znear, GLfloat 
 }
 
 void Render::setupProjection(int mode) {
-#ifdef USE_GLES
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-#endif
+
 	if (mode == kProjMenu) {
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
@@ -599,6 +742,54 @@ void Render::drawOverlay() {
 		glColor4f(1., 1., 1., 1.);
 		_overlay.r = _overlay.g = _overlay.b = 255;
 	}
+}
+
+void Render::setupJobList()
+{	
+	JobCount = 0;
+	isBatching = 1;
+}
+
+void Render::setupTexJobList()
+{
+	for (int i=0; i < MAX_ATLASES; i++) {
+		TexturedJobCount[i] = 0;		
+	}
+	
+	isBatching = 1;
+}
+
+void Render::flushTexJobList()
+{
+	for (int i=0; i < MAX_ATLASES; i++) {
+		if (TexturedJobCount[i]) {
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, i+1);
+			glVertexPointer(3, GL_FLOAT, sizeof(TexturedJobVertex), &TexturedJobList[i][0][0].x);
+			glTexCoordPointer(2, GL_FLOAT, sizeof(TexturedJobVertex), &TexturedJobList[i][0][0].u);
+			glDrawArrays(GL_TRIANGLES, 0, TexturedJobCount[i] * 3);
+			glDisable(GL_TEXTURE_2D);
+			
+			TexturedJobCount[i] = 0;
+		}			
+	}
+	
+	isBatching = 0;
+}
+
+void Render::flushJobList()
+{
+	//TODO:: render all triangles
+	if (JobCount > 0)
+	{
+		glEnable(GL_COLOR_ARRAY);
+		glVertexPointer(3, GL_FLOAT, sizeof(JobVertex), &JobList[0][0].x);
+		glColorPointer(4, GL_FLOAT, sizeof(JobVertex), &JobList[0][0].r);
+		glDrawArrays(GL_TRIANGLES, 0, JobCount*3);
+		glDisable(GL_COLOR_ARRAY);
+	}
+	
+	isBatching = 0;
 }
 
 const uint8_t *Render::captureScreen(int *w, int *h) {
