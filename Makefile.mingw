@@ -24,8 +24,8 @@ CXXFLAGS += -MMD $(DEFINES) $(SDL_CFLAGS)
 all: f2bgl.exe
 
 f2bgl.exe: f2bgl
-	$(STRIP) -o $@ $^
-	upx -9 $@
+	#$(STRIP) -o $@ $^
+	#upx -9 $@
 
 f2bgl: $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ -static-libgcc -static-libstdc++ $(LIBS)

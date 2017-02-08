@@ -12,10 +12,35 @@ struct Texture {
 	GLuint id;
 	int bitmapW, bitmapH;
 	uint8_t *bitmapData;
+	int texX, texY;
 	int texW, texH;
+	float x, y;
 	float u, v;
 	Texture *next;
 	int16_t key;
+};
+
+struct AtlasNode {
+	AtlasNode(int x, int y, int w, int h);
+	~AtlasNode();
+	
+	void splitNode(int w, int h);
+	AtlasNode *findFreeNode(int w, int h);
+	
+	int occupied;
+	int x, y;
+	int w, h;
+	
+	AtlasNode *children[2];
+};
+
+struct Atlas {
+	Atlas(GLint maxTexSz, int fmt, Atlas *next);
+	~Atlas();
+	
+	GLuint tex;
+	AtlasNode *tree;
+	Atlas *next;
 };
 
 struct TextureCache {
@@ -35,6 +60,8 @@ struct TextureCache {
 	void setPalette(const uint8_t *pal, bool updateTextures = true);
 
 	int _fmt;
+	GLint maxTexSz;
+	Atlas *atlas;
 	Texture *_texturesListHead, *_texturesListTail;
 	uint16_t _clut[256];
 	uint16_t *_texBuf;

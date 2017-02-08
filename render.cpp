@@ -268,7 +268,7 @@ void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int p
 		// 4:::3
 		//
 		{
-			GLfloat uv[] = { 0., 0., tx, 0., tx, ty, 0., ty };
+			GLfloat uv[] = { t->x, t->y, tx, t->y, tx, ty, t->x, ty };
 			emitQuadTex3i(vertices, uv);
 		}
 		break;
@@ -279,7 +279,7 @@ void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int p
 		// 3:::2
 		//
 		{
-			GLfloat uv[] = { tx / 2, 0., tx, ty, 0., ty };
+			GLfloat uv[] = { (tx + t->x) / 2, t->y, tx, ty, t->x, ty };
 			emitTriTex3i(vertices, uv);
 		}
 		break;
@@ -291,7 +291,7 @@ void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int p
 		// 3:::2
 		//
 		{
-			GLfloat uv[] = { tx, 0., tx, ty, 0., ty, 0., 0. };
+			GLfloat uv[] = { tx, t->y, tx, ty, t->x, ty, t->x, t->y };
 			emitQuadTex3i(vertices, uv);
 		}
 		break;
@@ -302,7 +302,7 @@ void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int p
 		// 2:::1
 		//
 		{
-			GLfloat uv[] = { tx, ty, 0., ty, tx / 2, 0. };
+			GLfloat uv[] = { tx, ty, t->x, ty, (tx + t->x) / 2, t->y };
 			emitTriTex3i(vertices, uv);
 		}
 		break;
@@ -314,7 +314,7 @@ void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int p
 		// 2:::1
 		//
 		{
-			GLfloat uv[] = { tx, ty, 0., ty, 0., 0., tx, 0. };
+			GLfloat uv[] = { tx, ty, t->x, ty, t->x, t->y, tx, t->y };
 			emitQuadTex3i(vertices, uv);
 		}
 		break;
@@ -325,7 +325,7 @@ void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int p
 		// 1:::3
 		//
 		{
-			GLfloat uv[] = { .0, ty, tx / 2, 0., tx, ty };
+			GLfloat uv[] = { t->x, ty, (t->x + tx) / 2, t->y, tx, ty };
 			emitTriTex3i(vertices, uv);
 		}
 		break;
@@ -337,7 +337,7 @@ void Render::drawPolygonTexture(const Vertex *vertices, int verticesCount, int p
 		// 1:::4
 		//
 		{
-			GLfloat uv[] = { 0., 0., 0., ty, tx, ty, tx, 0. };
+			GLfloat uv[] = { t->x, t->y, t->x, ty, tx, ty, tx, t->y };
 			emitQuadTex3i(vertices, uv);
 		}
 		break;
@@ -362,7 +362,7 @@ void Render::drawSprite(int x, int y, const uint8_t *texData, int texW, int texH
 	glEnable(GL_TEXTURE_2D);
 	Texture *t = _textureCache.getCachedTexture(texData, texW, texH, texKey);
 	glBindTexture(GL_TEXTURE_2D, t->id);
-	GLfloat uv[] = { 0., 0., t->u, 0., t->u, t->v, 0., t->v };
+	GLfloat uv[] = { t->x, t->y, t->u, t->y, t->u, t->v, t->x, t->v };
 	emitQuadTex2i(x, y, texW, texH, uv);
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_DEPTH_TEST);
@@ -588,7 +588,7 @@ void Render::drawOverlay() {
 		const GLfloat tU = _overlay.tex->u;
 		const GLfloat tV = _overlay.tex->v;
 		assert(tU != 0. && tV != 0.);
-		GLfloat uv[] = { 0., 0., tU, 0., tU, tV, 0., tV };
+		GLfloat uv[] = { _overlay.tex->x, _overlay.tex->y, tU, _overlay.tex->y, tU, tV, _overlay.tex->x, tV };
 		emitQuadTex2i(0, 0, _w, _h, uv);
 		glEnable(GL_DEPTH_TEST);
 		glDisable(GL_TEXTURE_2D);
@@ -606,8 +606,8 @@ const uint8_t *Render::captureScreen(int *w, int *h) {
 		_screenshotBuf = (uint8_t *)calloc(_w * _h, 3);
 	}
 	if (_screenshotBuf) {
-                glPixelStorei(GL_PACK_ALIGNMENT, 1);
-                glReadPixels(0, 0, _w, _h, GL_RGB, GL_UNSIGNED_BYTE, _screenshotBuf);
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		glReadPixels(0, 0, _w, _h, GL_RGB, GL_UNSIGNED_BYTE, _screenshotBuf);
 		*w = _w;
 		*h = _h;
 	}
